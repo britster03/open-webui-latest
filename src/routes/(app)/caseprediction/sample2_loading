@@ -1,0 +1,110 @@
+<script>
+    import { casePrediction } from '$lib/apis/caseprediction';
+    import { PDFDocument } from 'pdfjs';
+    import { user } from '$lib/stores';
+    import Navbar from '$lib/components/layout/Navbar.svelte';
+    import MessageInput from '$lib/components/chat/MessageInput.svelte';
+    import Message from '$lib/components/chat/Message.svelte';
+
+    let legalQuery = '';
+    let file = null;
+    let messages = [];
+    let loading = false;
+    let loadingPercentage = 0;
+
+    function updateProgress(endAt, increment = 5, interval = 100) {
+        const intervalId = setInterval(() => {
+            if (loadingPercentage >= endAt) {
+                clearInterval(intervalId);
+            } else {
+                loadingPercentage += increment;
+            }
+        }, interval);
+    }
+
+    async function extractTextFromPDF(pdfBuffer) {
+        loading = true;
+        loadingPercentage = 0;
+        updateProgress(30); // update progress during PDF loading
+
+        const pdfDoc = await PDFDocument.load(pdfBuffer);
+        const pages = pdfDoc.getPages();
+        const textPromises = pages.map((page, index) => {
+            return page.getTextContent().then(textContent => {
+                loadingPercentage = 30 + ((index + 1) / pages.length * 40); // progress from 30 to 70
+                return textContent.items.map(item => item.str).join(' ');
+            });
+        });
+        const textContents = await Promise.all(textPromises);
+        loadingPercentage = 70; // completion of text extraction
+        loading = false;
+        return textContents.join('\n');
+    }
+
+    async function performCasePrediction() {
+        if (!legalQuery.trim() && !file) {
+            console.error("Please enter a query or upload a PDF file for prediction");
+            return;
+        }
+
+        let queryText = legalQuery;
+        loading = true;
+        updateProgress(10); // progress for starting the process
+
+        if (file) {
+            const buffer = await file.arrayBuffer();
+            queryText = await extractTextFromPDF(buffer);
+        }
+
+        try {
+            const token = user.token;
+            updateProgress(80, 2, 150); // backend processing progress
+            const response = await casePrediction(token, queryText);
+            loadingPercentage = 100; //set to 100% on completion
+
+            messages = [
+                ...messages,
+                { id: Date.now(), content: queryText, role: 'user' },
+                { id: Date.now() + 1, content: response.reasoning, role: 'assistant', label: response.prediction ? 'Accepted' : 'Rejected' }
+            ];
+
+            legalQuery = '';
+            file = null;
+        } catch (error) {
+            console.error("Failed to perform case prediction:", error);
+        } finally {
+            loading = false;
+            loadingPercentage = 0;
+        }
+    }
+</script>
+
+<style>
+    .loading-indicator {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 24px;
+        color: white;
+        background-color: rgba(0, 0, 0, 0.7);
+        padding: 10px 20px;
+        border-radius: 10px;
+    }
+</style>
+
+
+<svelte:head>
+    <title>Legal Case Prediction</title>
+</svelte:head>
+
+<div class="h-screen max-h-[100dvh] w-full flex flex-col">
+    <Navbar />
+    <MessageInput bind:prompt={legalQuery} on:fileSelected="{e => file = e.detail.file}" submitPrompt={performCasePrediction} />
+    {#if loading}
+        <div class="loading-indicator">
+            Loading... {Math.round(loadingPercentage)}%
+        </div>
+    {/if}
+    <div class="h-full w-full flex flex-col py-8"> <Message {messages} /></div>
+</div>

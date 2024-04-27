@@ -1,0 +1,47 @@
+<script lang="ts">
+    import { onMount, tick } from 'svelte';
+    import { legalSearch } from '$lib/apis/legalsearch';
+    import { user, WEBUI_NAME } from '$lib/stores';
+    import Navbar from '$lib/components/layout/Navbar.svelte';
+    import MessageInput from '$lib/components/chat/MessageInput.svelte';
+    import Message from '$lib/components/chat/Message.svelte';
+
+    let legalQuery = '';
+    let messages = []; // initialize messages as an empty array
+
+    const performLegalSearch = async () => {
+        if (!legalQuery.trim()) {
+            console.error("Please enter a query for legal search");
+            return;
+        }
+        try {
+            const token = user.token; // assuming user.store contains .token
+            const response = await legalSearch(token, legalQuery);
+
+            // Append new message and response to the messages array
+            const newMessages = [
+                ...messages,
+                { id: Date.now(), content: legalQuery, role: 'user'},
+		{ id: Date.now() + 1, content: response.description, role: 'assistant' , label:'Reference : '},
+            ];
+
+            messages = newMessages; 
+            legalQuery = ''; 
+        } catch (error) {
+            console.error("Failed to perform legal search:", error);
+        }
+    };
+</script>
+
+<svelte:head>
+    <title>{`${WEBUI_NAME} | Legal Search`}</title>
+</svelte:head>
+
+<div class="h-screen max-h-[100dvh] w-full flex flex-col">
+    <Navbar />
+    <MessageInput bind:prompt={legalQuery} submitPrompt={performLegalSearch} />
+    <div class="h-full w-full flex flex-col py-8"> <Message {messages} /></div>
+
+
+ 
+</div>

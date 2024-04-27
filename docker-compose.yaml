@@ -1,0 +1,46 @@
+version: "3.8"
+services:
+
+  webui:
+    build:
+      context: .  # Adjust the branch if necessary
+      dockerfile: Dockerfile
+    image: ronny03/techpeek:openthree
+    expose:
+     - 8080/tcp
+    ports:
+     - 8080:8080/tcp
+    environment:
+     - OLLAMA_API_BASE_URL=http://localhost:11434/api
+     # uncomment the following if you are running ollama on the docker host and remove the ollama service below
+     #- OLLAMA_API_BASE_URL=http://host.docker.internal:11434/api 
+    volumes:
+      - open-webui:/app/backend/data
+    depends_on:
+     - ollama
+
+  ollama:
+    image: ollama/ollama
+    expose:
+     - 11434/tcp
+    ports:
+     - 11434:11434/tcp
+    healthcheck:
+      test: ollama --version || exit 1
+    command: serve
+    volumes:
+      - ollama:/root/.ollama
+
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    environment:
+      - TUNNEL_URL=http://webui:8080
+    command: tunnel --no-autoupdate
+    depends_on:
+      - webui
+
+volumes:
+  ollama:
+  open-webui:

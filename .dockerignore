@@ -1,0 +1,14 @@
+.github
+.DS_Store
+docs
+kubernetes
+node_modules
+/.svelte-kit
+/package
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+__pycache__
+_old
+uploads
+.ipynb_checkpoints
+_test

@@ -1,0 +1,132 @@
+<script lang="ts">
+    import { onMount, tick } from 'svelte';
+    import { legalSearch } from '$lib/apis/legalsearch';
+    import { user, WEBUI_NAME } from '$lib/stores';
+    import Navbar from '$lib/components/layout/Navbar.svelte';
+    import MessageInput from '$lib/components/chat/MessageInput.svelte';
+    import Message from '$lib/components/chat/Message.svelte';
+
+    let legalQuery = '';
+    let messages = []; 
+    let loading = false;
+    let loadingPercentage = 0;
+    let isSubmitting = false;
+    let abortController = null;
+
+    function updateProgress(startAt, endAt, increment = 5, interval = 100) {
+        loadingPercentage = startAt;
+        const intervalId = setInterval(() => {
+            if (loadingPercentage >= endAt) {
+                clearInterval(intervalId);
+                if (endAt === 100 && !abortController.signal.aborted) {
+                    loading = false; 
+                }
+            } else {
+                loadingPercentage += increment;
+            }
+        }, interval);
+    }
+
+    const performLegalSearch = async () => {
+        if (!legalQuery.trim()) {
+            console.error("Please enter a query for legal search");
+            return;
+        }
+        abortController = new AbortController();
+        loading = true;
+        isSubmitting = true;
+        updateProgress(0, 50);
+
+        try {
+            const token = user.token;
+            const response = await legalSearch(token, legalQuery, abortController.signal);
+
+            if (abortController.signal.aborted) {
+                throw new Error("AbortError");
+            }
+
+            updateProgress(50, 100, 10, 50); 
+
+            const newMessages = [
+                ...messages,
+                { id: Date.now(), content: legalQuery, role: 'user'},
+                { id: Date.now() + 1, content: response.description, role: 'assistant', label: 'Reference:'},
+            ];
+
+            messages = newMessages;
+            legalQuery = '';
+        } catch (error) {
+            if (error.name === 'AbortError' || error.message === 'AbortError') {
+                console.log("Legal search request was canceled.");
+            } else {
+                console.error("Failed to perform legal search:", error);
+            }
+        } finally {
+            loading = false;
+            loadingPercentage = 0;
+            isSubmitting = false;
+            abortController = null;
+        }
+    };
+
+    function cancelLegalSearch() {
+        if (abortController) {
+            abortController.abort();
+            messages = [...messages, { id: Date.now(), content: "Legal search request canceled by the user.", role: 'system' }];
+            loading = false;
+            loadingPercentage = 0; 
+            isSubmitting = false;
+        }
+    }
+
+</script>
+
+<svelte:head>
+    <title>Legal Search</title>
+</svelte:head>
+
+<div class="h-screen max-h-[100dvh] w-full flex flex-col">
+    <Navbar />
+    <MessageInput bind:prompt={legalQuery} submitPrompt={performLegalSearch} />
+    {#if isSubmitting}
+        <button on:click={cancelLegalSearch}>Cancel Search</button>
+    {/if}
+    <div class="h-full w-full flex flex-col py-8"> <Message {messages} /></div>
+    {#if loading}
+        <div class="loading-indicator">
+            Loading... {Math.round(loadingPercentage)}%
+        </div>
+    {/if}
+</div>
+
+<style>
+    .loading-indicator {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 24px;
+        color: white;
+        background-color: rgba(0, 0, 0, 0.7);
+        padding: 10px 20px;
+        border-radius: 10px;
+	}
+    button {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        padding: 10px 20px;
+        font-size: 16px;
+        color: white;
+        background-color: blue;
+        border: none;
+        border-radius: 5px;
+    }
+
+    .formatted-text p {
+        margin: 5px 0;
+        padding: 0;
+        font-size: 0.9em;
+        color: #333;
+    }
+</style>

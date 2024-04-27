@@ -1,0 +1,90 @@
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse
+from sentence_transformers import SentenceTransformer
+from langchain.llms import OpenAI
+from langchain.llms import HuggingFaceHub
+from config import DATA_DIR, LEGAL_EMBEDDING_MODEL, LEGAL_EMBEDDING_MODEL_DEVICE_TYPE, CHROMA_CLI
+from dotenv import load_dotenv
+from huggingface_hub import InferenceClient
+
+load_dotenv()
+
+app = FastAPI()
+origins = ["*"]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.state.LEGAL_EMBEDDING_MODEL = LEGAL_EMBEDDING_MODEL
+app.state.LEGAL_EMBEDDING_MODEL_DEVICE_TYPE = LEGAL_EMBEDDING_MODEL_DEVICE_TYPE
+app.state.CHROMA_CLI = CHROMA_CLI
+model = SentenceTransformer('all-MiniLM-L6-v2')
+#llm_client = OpenAI(api_key="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")  # Update with your API key
+#llm_client = InferenceClient(model="mistralai/Mixtral-8x7B-Instruct-v0.1", token="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")
+#llm_client = HuggingFaceHub(repo_id="HuggingFaceH4/zephyr-7b-beta", model_kwargs={"temperature": 0.2, "max_length": 10000})
+llm_client = HuggingFaceHub(repo_id="NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO", model_kwargs={"temperature": 0.2, "max_length": 10000})
+
+class LegalQuery(BaseModel):
+    query: str
+
+class AnswerResult(BaseModel):
+    answer: str
+    description: str  #  descriptions of the documents used
+
+@app.post("/legalsearch", response_model=AnswerResult)
+async def legal_search(query_data: LegalQuery):
+    try:
+        query_embedding = model.encode(query_data.query)
+        collection_name = "judgemasterdb"
+        collection = app.state.CHROMA_CLI.get_collection(collection_name)
+        results = collection.query(query_texts=[query_data.query], n_results=5)
+
+        if not results['documents']:
+            return JSONResponse(status_code=404, content={"detail": "No documents found."})
+
+        descriptions = []
+        for index, doc in enumerate(results['documents'][0][:5]):
+            meta = results['metadatas'][0][index]
+            prompt = f"Create a short description within 50 words for the legal case given in the context: {doc}"
+            description = llm_client.generate(
+                prompts=[prompt],
+                max_new_tokens=120,
+                temperature=0.2
+            )
+            description_text = description.generations[0][0].text.strip()
+
+            descriptions.append(f"\n\n{meta['reference']}: {description_text}\n\n")
+#            descriptions.append(f"Reference :\nDate of Judgement: {doc['date']}, Case Title: {doc['title']}: {description}\n\n")
+           # formatted_descriptions.append(f"<p>date of judgement: {meta['date']}, case_title: {meta['title']}: {description_text}</p>")
+        formatted_descriptions = "\n".join(descriptions)
+
+        #formatted_descriptions = "<br><br>".join(f"<p>{desc}</p>" for desc in descriptions)
+
+        answer = llm_client.generate(
+            prompts=[f"Based on the following document, answer the question: '{query_data.query}'\n\n{doc}"],
+#            prompts=[f"Based on the following documents, answer the question: '{query_data.query}'\n\n" + "".join([doc['text'] for doc in results])],
+            max_new_tokens=1500,
+            temperature=0.2
+        )
+        answer_text = answer.generations[0][0].text.strip() if answer.generations else "No answer generated."
+
+#        answer_text = answer.text.strip()
+
+        response_content = {
+            "answer": answer_text,
+            "description": formatted_descriptions
+        }
+
+
+        return jsonable_encoder(response_content)
+
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"detail": str(e)})
+

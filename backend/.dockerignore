@@ -1,0 +1,7 @@
+__pycache__
+_old
+uploads
+.ipynb_checkpoints
+*.db
+_test
+

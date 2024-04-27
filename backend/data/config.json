@@ -1,0 +1,34 @@
+{
+    "ui": {
+        "prompt_suggestions": [
+            {
+                "title": [
+                    "Define Articles",
+                    "legal articles and its precise explaination"
+                ],
+                "content": "Define Article 14 of the Indian constitution and its legal implications."
+            },
+            {
+                "title": [
+                    "Some major acts",
+                    "know more about some major acts"
+                ],
+                "content": "What major Indian acts does a private company need to be aware of?"
+            },
+            {
+                "title": [
+                    "Special economic zones",
+                    "insights on some taxation benefits"
+                ],
+                "content": "What are special economic zones and what are their taxation benefits?"
+            },
+            {
+                "title": [
+                    "Create agreements",
+                    "snippets related to legal documents"
+                ],
+                "content": "Create a service agreement for building a website."
+            }
+        ]
+    }
+}

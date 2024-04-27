@@ -1,0 +1,59 @@
+<script>
+    import { casePrediction } from '$lib/apis/caseprediction';
+    import { PDFDocument } from 'pdfjs';
+    import { user } from '$lib/stores';
+    import Navbar from '$lib/components/layout/Navbar.svelte';
+    import MessageInput from '$lib/components/chat/MessageInput.svelte';
+    import Message from '$lib/components/chat/Message.svelte';
+
+    let legalQuery = '';
+    let file = null;
+    let messages = [];
+
+    async function extractTextFromPDF(pdfBuffer) {
+        const pdfDoc = await PDFDocument.load(pdfBuffer);
+        const textPromises = pdfDoc.getPages().map(page => page.getTextContent());
+        const textContents = await Promise.all(textPromises);
+        return textContents.map(text => text.items.map(item => item.str).join(' ')).join('\n');
+    }
+
+    async function performCasePrediction() {
+        if (!legalQuery.trim() && !file) {
+            console.error("Please enter a query or upload a PDF file for prediction");
+            return;
+        }
+
+        let queryText = legalQuery;
+        if (file) {
+            const buffer = await file.arrayBuffer();
+            queryText = await extractTextFromPDF(buffer);
+        }
+
+        try {
+            const token = user.token;
+            const response = await casePrediction(token, queryText);
+
+            messages = [
+                ...messages,
+                { id: Date.now(), content: queryText, role: 'user' },
+                { id: Date.now() + 1, content: response.reasoning, role: 'assistant', label: response.prediction ? 'Accepted' : 'Rejected' }
+            ];
+
+            legalQuery = '';
+            file = null;
+        } catch (error) {
+            console.error("Failed to perform case prediction:", error);
+        }
+    }
+</script>
+
+<svelte:head>
+    <title>Legal Case Prediction</title>
+</svelte:head>
+
+<div class="h-screen max-h-[100dvh] w-full flex flex-col">
+    <Navbar />
+    <MessageInput bind:prompt={legalQuery} on:fileSelected="{e => file = e.detail.file}" submitPrompt={performCasePrediction} />
+    <div class="h-full w-full flex flex-col py-8"> <Message {messages} /></div>
+</div>
+

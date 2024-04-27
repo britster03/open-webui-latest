@@ -1,0 +1,7 @@
+__pycache__
+_old
+uploads
+.ipynb_checkpoints
+/apps/caseprediction/model.safetensors
+Pipfile
+
