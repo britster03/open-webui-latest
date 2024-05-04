@@ -74,8 +74,8 @@
                     ...messages,
 //                    { id: Date.now(), content: queryText, role: 'user' },
 //                    { id: Date.now() + 1, content: response.reasoning, role: 'assistant', label: response.prediction ? 'Accepted' : 'Rejected' }
-                    { id: Date.now(), content: `<strong>Query:</strong> ${queryText}`, role: 'user' },
-                    { id: Date.now() + 1, content: `<strong>Prediction:</strong> ${response.prediction ? 'Accepted' : 'Rejected'}<br><strong>Reasoning:</strong> ${response.reasoning}`, role: 'assistant' }
+                    { id: Date.now(), content: `<div><strong>Query:</strong><br>${queryText.replace(/\n/g, '<br>')}</div>`, role: 'user' },
+                    { id: Date.now() + 1, content: `<div><strong>Prediction:</strong> ${response.prediction ? 'Accepted' : 'Rejected'}<br><strong>Reasoning:</strong><br>${response.reasoning.replace(/\n/g, '<br>')}</div>`, role: 'assistant' }
                 ];
             }
             legalQuery = '';

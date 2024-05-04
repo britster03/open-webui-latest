@@ -277,17 +277,18 @@ def merge_and_sort_query_results(query_results, k):
     combined_distances = []
     combined_metadatas = []
     combined_documents = []
-
+    combined_sources = []
     # Combine data from each dictionary
     for data in query_results:
         combined_ids.extend(data["ids"][0])
         combined_distances.extend(data["distances"][0])
         combined_metadatas.extend(data["metadatas"][0])
         combined_documents.extend(data["documents"][0])
+        combined_sources.extend([meta['name'] for meta in data["metadatas"][0]])
 
     # Create a list of tuples (distance, id, metadata, document)
     combined = list(
-        zip(combined_distances, combined_ids, combined_metadatas, combined_documents)
+        zip(combined_distances, combined_ids, combined_metadatas, combined_documents, combined_sources)
     )
 
     # Sort the list based on distances
@@ -301,6 +302,7 @@ def merge_and_sort_query_results(query_results, k):
     sorted_ids = list(sorted_ids)[:k]
     sorted_metadatas = list(sorted_metadatas)[:k]
     sorted_documents = list(sorted_documents)[:k]
+    sorted_sources = list(sorted_sources)[:k]
 
     # Create the output dictionary
     merged_query_results = {
@@ -308,6 +310,7 @@ def merge_and_sort_query_results(query_results, k):
         "distances": [sorted_distances],
         "metadatas": [sorted_metadatas],
         "documents": [sorted_documents],
+        "sources": [sorted_sources],
         "embeddings": None,
         "uris": None,
         "data": None,

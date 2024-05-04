@@ -22,7 +22,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-MODEL_PATH = "/app/backend/apps/caseprediction/"
+MODEL_PATH = "/home/ubuntu/open-webui-main/backend/apps/caseprediction/"
 llm_client = HuggingFaceHub(repo_id="NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO", model_kwargs={"temperature": 0.2, "max_length": 10000})
 
 # Load model and tokenizer
@@ -54,8 +54,9 @@ async def case_prediction(query_data: CaseQuery):
         reasoning_prompt = f"The following case was {label} based on the analysis: {query_data.query}"
         reasoning = llm_client.generate(
             prompts=[reasoning_prompt],
-            max_new_tokens=1200,
-            temperature=0.2
+            max_new_tokens=2048,
+            temperature=0.2,
+            repitition_penalty=1.5
         )
         reasoning_text = reasoning.generations[0][0].text.strip() if reasoning.generations else "No reasoning generated."
 

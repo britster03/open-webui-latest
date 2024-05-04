@@ -265,13 +265,15 @@
 				})
 			);
 			relevantContexts = relevantContexts.filter((context) => context);
+//                        const sourceNames = relevantContexts.map(context => context.collection_name || context.name).join(", ");
 
 			const contextString = relevantContexts.reduce((a, context, i, arr) => {
 				return `${a}${context.documents.join(' ')}\n`;
 			}, '');
 
 			console.log(contextString);
-
+			
+//			const sourceNames = relevantContexts.map(context => context.collection_name || context.name).join(", ");
 			history.messages[parentId].raContent = await RAGTemplate(
 				localStorage.token,
 				contextString,
@@ -281,6 +283,8 @@
 			await tick();
 			processing = '';
 		}
+
+                const sourceNames = docs.map(doc => `${doc.title || doc.name}`).join(", ");
 
 		await Promise.all(
 			selectedModels.map(async (modelId) => {
@@ -296,7 +300,8 @@
 						role: 'assistant',
 						content: '',
 						model: model.id,
-						timestamp: Math.floor(Date.now() / 1000) // Unix epoch
+						timestamp: Math.floor(Date.now() / 1000), // Unix epoch
+						additionalInfo: `Source(s): ${sourceNames}`,
 					};
 
 					// Add message to history and Set currentId to messageId

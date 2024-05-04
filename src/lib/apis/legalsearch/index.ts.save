@@ -10,7 +10,7 @@ export const legalSearch = async (token:string, query: string, resultsLimit: str
             'Content-Type': 'application/json',
 	    Authorization : `Bearer ${token}`
         },
-        body: JSON.stringify({ query, results_limit: resultsLimit })
+        body: JSON.stringify({ query, reuresultsLimit })
     }).then(res => {
         if (!res.ok) {
             throw new Error(`HTTP error! status: ${res.status}`);

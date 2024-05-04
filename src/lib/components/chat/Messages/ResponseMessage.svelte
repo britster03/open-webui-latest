@@ -11,7 +11,7 @@
 
 	const dispatch = createEventDispatcher();
 
-	import { config, settings } from '$lib/stores';
+	import { config, settings, documents } from '$lib/stores';
 	import { synthesizeOpenAISpeech } from '$lib/apis/openai';
 	import { imageGenerations } from '$lib/apis/images';
 	import { extractSentences } from '$lib/utils';
@@ -26,6 +26,7 @@
 	export let modelfiles = [];
 	export let message;
 	export let siblings;
+        export let metadatas = []; // Ensure this is passed in as a prop
 
 	export let isLastMessage = true;
 
@@ -53,6 +54,37 @@
 	$: tokens = marked.lexer(message.content);
 
 	const renderer = new marked.Renderer();
+
+        import { get } from 'svelte/store';
+//	$: documentInfo = findDocumentForMessage(message);
+	let documentInfo;	
+     function findRelatedDocument(messageContent, documents) {
+        const keywords = documents.map(doc => doc.content); // Assume titles are significant
+	console.log("keywords" , keywords);
+        for (let keyword of keywords) {
+            if (messageContent.includes(keyword)) {
+                return documents.find(doc => doc.title === keyword);
+            }
+        }
+        return null;
+    } 
+        $: {
+        const allDocuments = get(documents);
+	console.log("Current message:", message);
+//	documentInfo = findDocumentForMessage(message);
+        documentInfo = findRelatedDocument(message.content, allDocuments);
+	console.log("Document Info", documentInfo);
+        }
+        function findDocumentForMessage(msg) {
+            const allDocuments = get(documents);
+            console.log("All documents:", allDocuments);
+            return allDocuments.find(doc => doc.name === msg.filename); // Adjust the condition based on your data structure
+        }
+
+
+
+
+
 
 	// For code blocks with simple backticks
 	renderer.codespan = (code) => {
@@ -295,6 +327,10 @@
 		await tick();
 		renderStyling();
 	});
+    onMount(() => {
+        console.log('Documents:', get(documents));
+    });
+	console.log(message);
 </script>
 
 {#key message.id}
@@ -303,7 +339,7 @@
 			src={modelfiles[message.model]?.imageUrl ?? `${WEBUI_BASE_URL}/static/favicon.png`}
 		/>
 
-		<div class="w-full overflow-hidden">
+		<div class="w-full overlay-hidden">
 			<Name>
 				{#if message.model in modelfiles}
 					{modelfiles[message.model]?.title}
@@ -316,11 +352,28 @@
 						{dayjs(message.timestamp * 1000).format('DD/MM/YYYY HH:mm')}
 					</span>
 				{/if}
-			</Name>
 
+                                {#if message.source}
+                                        <span class=" invisible group-hover:visible text-gray-400 text-xs font-medium">
+                                                {message.source}
+                                        </span>
+                                {/if}
+			</Name>
+			{#if message.additionalInfo}
+                             <div>
+                                   <p>Linked Document: {message.additionalInfo}</p>
+                             </div>
+			{:else}
+			     <p>No document linked with this message.</p>
+                        {/if}
 			{#if message.content === ''}
 				<Skeleton />
 			{:else}
+				{#if message.source}
+				    <div class="mssage-source text-sm text-gray-500 mt-2">
+					Source: {extractSource()}
+				    </div>
+				{/if}
 				{#if message.files}
 					<div class="my-2.5 w-full flex overflow-x-auto gap-2 flex-wrap">
 						{#each message.files as file}
@@ -332,7 +385,8 @@
 						{/each}
 					</div>
 				{/if}
-
+                               
+        
 				<div
 					class="prose chat-{message.role} w-full max-w-full dark:prose-invert prose-headings:my-0 prose-p:m-0 prose-p:-mb-6 prose-pre:my-0 prose-table:my-0 prose-blockquote:my-0 prose-img:my-0 prose-ul:-my-4 prose-ol:-my-4 prose-li:-my-3 prose-ul:-mb-6 prose-ol:-mb-8 prose-ol:p-0 prose-li:-mb-4 whitespace-pre-line"
 				>
@@ -392,6 +446,10 @@
 										<div class=" self-center">
 											{message.content}
 										</div>
+                                                                                <div class=" self-center">
+                                                                                        {message.source}
+                                                                                </div>
+
 									</div>
 								{:else}
 									{#each tokens as token}
