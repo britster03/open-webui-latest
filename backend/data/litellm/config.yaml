@@ -11,21 +11,21 @@ litellm_settings:
     '
 model_list:
 - litellm_params:
-    api_key: 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
+    api_key: 
     model: huggingface/HuggingFaceH4/zephyr-7b-beta
     max_tokens: 16000
   model_info:
     id: f75a2336-1d6c-4088-9938-ebfefb3b5c5f
   model_name: TechpeekM1
 - litellm_params:
-    api_key: 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
+    api_key: 
     model: huggingface/mistralai/Mixtral-8x7B-Instruct-v0.1
     max_tokens: 16000
   model_info:
     id: 8e16cb7f-f3f0-4698-93f2-b07d17903054
   model_name: TechpeekM2
 - litellm_params:
-    api_key: AIzaSyAjzMh2koRyd6uqPkApSQUWy0aAdsQUicI
+    api_key: 
     model: gemini/gemini-1.0-pro
   model_info:
     id: 1c30a31c-7e2c-4257-9649-971bc09f88bb
